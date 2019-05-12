@@ -1,0 +1,22 @@
+{
+  "name": "two-phase-simplex",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon --exec babel-node main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mathjs": "^5.9.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.4.4",
+    "@babel/core": "^7.4.4",
+    "@babel/node": "^7.2.2",
+    "@babel/plugin-proposal-class-properties": "^7.4.4",
+    "@babel/preset-env": "^7.4.4",
+    "nodemon": "^1.19.0"
+  }
+}
