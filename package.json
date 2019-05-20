@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@dagrejs/graphlib": "^2.1.4",
     "mathjs": "^5.9.0"
   },
   "devDependencies": {

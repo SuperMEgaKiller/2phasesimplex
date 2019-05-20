@@ -19,10 +19,12 @@ export default class TwoPhaseSimplex {
   stop = false;
   matrix;
 
-  constructor(equation, boundaries, vars) {
+  constructor(z, zEq, boundaries, boundariesEq, vars) {
     //   array of boudaries
     this.boundaries = boundaries;
-    this.equation = equation;
+    this.boundariesEq = boundariesEq;
+    this.equation = z;
+    this.zEq = zEq;
     this.vars = vars;
     this.matrix = [];
     this.baseRowParams = [];
@@ -30,6 +32,8 @@ export default class TwoPhaseSimplex {
     this.baseColumnParams = [];
     this.baseColumn = [];
     this.zRow = [];
+    this.firstPhase = true;
+    this.secondPhase = false;
   }
 
   createEquationBase = () => {
@@ -41,9 +45,22 @@ export default class TwoPhaseSimplex {
 
     // change base Column vals after changing helping Row
     let idx;
-    for (let i = 0; i < this.baseColumn.length; i++) {
-      idx = this.baseRowParams.indexOf(this.baseColumnParams[i]);
-      this.baseColumn[i] = this.baseRow[idx];
+    // if phase one ends and A stays error handle
+    // console.log(this.baseColumnParams);
+    // console.log(this.baseRowParams);
+    console.log(this.baseRowParams.some(param => /^a/.test(param)));
+    console.log(this.baseColumnParams);
+    if (this.baseRowParams.some(param => /^a/.test(param))) {
+      this.secondPhase = false;
+      console.log("after phase 1 a still in Row, phase-2 is not possbile");
+      console.log(this.baseRowParams);
+      console.log(this.zRow);
+    } else {
+      for (let i = 0; i < this.baseColumn.length; i++) {
+        idx = this.baseRowParams.indexOf(this.baseColumnParams[i]);
+        this.baseColumn[i] = this.baseRow[idx];
+      }
+      console.log("phase 2");
     }
   };
   initRow = bound => {
@@ -104,6 +121,7 @@ export default class TwoPhaseSimplex {
       this.matrix = math.concat(this.matrix, row);
     }
 
+    console.log("surpus ", this.matrix);
     // add Artificial Vars to Helping Row
     for (let i = 0; i < apos.length; i++) {
       this.baseRow.push(-1);
@@ -129,17 +147,13 @@ export default class TwoPhaseSimplex {
       console.log("Not Phase 1");
     }
     // debug
-    // console.log(this.baseColumn);
-    // console.log(this.baseColumnParams);
-    // console.log(this.baseRow);
-    // console.log(this.baseRowParams);
-    // console.log(this.matrix);
   };
 
   createZCRow = () => {
     this.zRow = [];
     let sum;
     let tmp;
+    console.log("create z Row");
     for (let i = 1; i < this.matrix[0].length; i++) {
       sum = 0;
       for (let j = 0; j < this.baseColumn.length; j++) {
@@ -152,6 +166,7 @@ export default class TwoPhaseSimplex {
       this.zRow.push(sum);
     }
     this.zRow = math.subtract(this.zRow, this.baseRow);
+    console.log("here z row");
   };
 
   initMatrix = () => {
@@ -159,7 +174,7 @@ export default class TwoPhaseSimplex {
     for (let i = 0; i < this.boundaries.length; i++) {
       this.matrix.push(this.initRow(this.boundaries[i]));
     }
-
+    console.log(this.matrix);
     // init Uknown variables and baseRow with 0 for them
     for (let i = 0; i < this.vars; i++) {
       let [, unknown] = this.boundaries[0][i].split("*");
@@ -188,17 +203,16 @@ export default class TwoPhaseSimplex {
     let ansColumn = this.getColumn(this.matrix, 0);
     let minColumn = this.getColumn(this.matrix, zMinIndex + 1);
     // debug
-    // console.log("pivot");
-    // console.log(ansColumn);
-    // console.log(minColumn);
-
+    // console.log("zMinIndex", zMinIndex);
+    // console.log("ansColumn", ansColumn);
+    // console.log("minColumn", minColumn);
+    // check is Z row >= 0
     if (this.zRow[zMinIndex] >= 0) {
       this.stop = true;
-      console.log("stop");
+      console.log("stop z row >=0 ");
     } else {
       let min = 1000000; //help var
       let tmp;
-
       for (let i = 0; i < minColumn.length; i++) {
         tmp = ansColumn[i] / minColumn[i];
         if (tmp < min && tmp > 0) {
@@ -211,13 +225,9 @@ export default class TwoPhaseSimplex {
       this.enteringParam = this.baseRowParams[this.enteringIndex];
       this.leavingIndex = this.pivot[1];
       this.leavingParam = this.baseColumnParams[this.leavingIndex];
-
+      console.log("leavingParam ", this.leavingParam);
+      console.log("enteringParam ", this.enteringParam);
       // debug
-      console.log("entering ", this.enteringIndex);
-      console.log("entering ", this.enteringParam);
-      console.log("leaving ", this.leavingIndex);
-      console.log("leaving ", this.leavingParam);
-
       // check that all entering column vals are not <= 0
       let enteringColumn = this.getColumn(
         this.matrix,
@@ -225,14 +235,18 @@ export default class TwoPhaseSimplex {
       ).filter(val => val > 0);
       if (enteringColumn.length === 0) {
         this.stop = true;
+        console.log("stop, entering columns vals <= 0");
+        console.log(this.getColumn(this.matrix, this.enteringIndex));
       }
-
-      // console.log(this.stop);
-      // console.log(enteringColumn);
     }
   };
 
   matrixOperations = () => {
+    console.log(this.matrix);
+    console.log(this.zRow);
+    console.log(this.baseColumnParams);
+    console.log(this.baseColumn);
+    console.log(this.baseRowParams);
     if (!this.stop) {
       let pivotRowIndex = this.pivot[1];
       let pivotColumnIndex = this.pivot[0];
@@ -261,29 +275,23 @@ export default class TwoPhaseSimplex {
 
       // removing A column if A leaving from base
       let slice, slice1, slice2;
+      // let matrixRowLen = this.matrix[0].length;
       if (/^a/.test(this.baseColumnParams[this.leavingIndex])) {
         let removingIndex = this.baseRowParams.indexOf(this.leavingParam);
-
         for (let i = 0; i < this.matrix.length; i++) {
           slice1 = this.matrix[i].slice(0, removingIndex + 1);
-          slice2 = this.matrix[i].slice(
-            removingIndex + 2,
-            this.matrix[0].length
-          );
+          slice2 = this.matrix[i].slice(removingIndex + 2, removingIndex + 3);
           slice = [...slice1, ...slice2];
           this.matrix[i] = slice;
         }
-
         slice1 = this.baseRow.slice(0, removingIndex);
-        slice2 = this.baseRow.slice(removingIndex + 1, this.baseRow.length);
+        slice2 = this.baseRow.slice(removingIndex + 1, removingIndex + 2);
+
         slice = [...slice1, ...slice2];
         this.baseRow = [...slice];
 
         slice1 = this.baseRowParams.slice(0, removingIndex);
-        slice2 = this.baseRowParams.slice(
-          removingIndex + 1,
-          this.baseRow.length
-        );
+        slice2 = this.baseRowParams.slice(removingIndex + 1, removingIndex + 2);
         slice = [...slice1, ...slice2];
         this.baseRowParams = [...slice];
       }
@@ -293,44 +301,66 @@ export default class TwoPhaseSimplex {
       this.baseColumnParams[this.leavingIndex] = this.baseRowParams[
         this.enteringIndex
       ];
-
-      //   console.log(this.baseColumn);
-      //   console.log(this.baseColumnParams);
+      console.log("a removed from matrix ", this.matrix);
+      console.log(this.baseRowParams);
       // recalculate Z row
       this.createZCRow();
-      //   console.log(this.zRow);
     }
   };
 
-  phaseTwoBaseInit = () => {
-    // baseRow init
-    for (let i = 0; i < this.baseRow.length; i++) {
-      const element = [];
+  generateOutput = () => {
+    let evalR = [];
+    let result = [];
+    for (let i = 1; i < this.vars + 1; i++) {
+      let param = `x${i}`;
+      let idx = this.baseColumnParams.indexOf(param);
+      if (idx !== -1) {
+        evalR.push({
+          [this.baseColumnParams[idx]]: this.getColumn(this.matrix, 0)[idx]
+        });
+
+        result.push(this.getColumn(this.matrix, 0)[idx]);
+      } else {
+        evalR.push({ [param]: 0 });
+        result.push(0);
+      }
     }
+    evalR = Object.assign(...evalR);
+    let infeasible = 1;
+    for (let i = 0; i < this.boundariesEq.length; i++) {
+      if (!math.parse(this.boundariesEq[i]).eval(evalR)) {
+        infeasible = 0;
+      }
+    }
+
+    let z = math.parse(this.zEq).eval(evalR);
+    return [infeasible, z, ...result];
   };
-  phaseOne = () => {
+  run = () => {
     // phase One
-    console.log("Phase One");
     while (!this.stop) {
+      console.log("Phase One");
       this.selectPivot();
       this.matrixOperations();
     }
-
+    console.log("Phase one end");
     if (this.stop) {
-      console.log("Phase Two");
       this.stop = false;
     }
 
     // phase two
     this.createEquationBase();
+    if (this.secondPhase) {
+      return this.generateOutput();
+    }
     this.createZCRow();
 
     while (!this.stop) {
-      console.log("iteraion");
+      console.log("Phase Two");
       this.selectPivot();
       this.matrixOperations();
     }
-    console.log(this.matrix);
-    console.log(this.baseColumnParams);
+
+    return this.generateOutput();
   };
 }
