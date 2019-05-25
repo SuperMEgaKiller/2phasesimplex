@@ -53,6 +53,7 @@ export default class Bnb {
 
   isNodeRounded = node => {
     let rounded = false;
+    console.log("node ", node);
     if (this.checkIsRound(node.slice(1, node.length - 1))) {
       rounded = true;
     }
@@ -84,7 +85,7 @@ export default class Bnb {
         upperEquation = upperEquation.concat(`+0*x${i} `);
       }
     }
-    upperEquation = upperEquation.concat(` >= ${up}`);
+    upperEquation = upperEquation.concat(`>= ${up}`);
 
     // lower
     let low = Math.floor(node[this.currentIndex + 2]);
@@ -97,7 +98,7 @@ export default class Bnb {
         lowerEquation = lowerEquation.concat(`+0*x${i} `);
       }
     }
-    lowerEquation = lowerEquation.concat(` <= ${low}`);
+    lowerEquation = lowerEquation.concat(`<= ${low}`);
 
     let eqUpper = [...node[node.length - 1], upperEquation.split(" ")];
     let eqLower = [...node[node.length - 1], lowerEquation.split(" ")];
@@ -117,7 +118,7 @@ export default class Bnb {
       lowBoundEq.push(eq.join(" "));
     });
 
-    console.log(node);
+    // console.log(node);
     // console.log(eqUpper);
     // console.log(upBoundEq);
     // console.log(eqLower);
@@ -139,8 +140,8 @@ export default class Bnb {
       this.vars
     );
     simplexLow.initMatrix();
-    console.log(eqUpper);
-    console.log(upBoundEq);
+    // console.log(eqUpper);
+    // console.log(upBoundEq);
     let upper = simplexUp.run();
     let lower = simplexLow.run();
     const result = [];
@@ -186,6 +187,7 @@ export default class Bnb {
       let curr;
       while (heap.length !== 0) {
         curr = heap.shift();
+
         if (this.isNodeRounded(curr)) {
           if (!this.optimal) {
             this.optimal = curr;
@@ -194,14 +196,18 @@ export default class Bnb {
           }
           console.log("New Optimal ", this.optimal);
         }
-        curr = this.expandNode(curr);
-        heap.push(...curr);
-        console.log("heap ", heap);
+
         if (this.optimal) {
-          heap = heap.filter(node => node[1] < this.optimal[1]);
+          heap = heap.filter(node => node[1] >= this.optimal[1]);
         }
+
         if (heap.length === 0) {
-          console.log("optimal", this.optimal);
+          if (this.optimal) {
+            console.log("optimal", this.optimal);
+          } else {
+            curr = this.expandNode(curr);
+            heap = [...heap, ...curr];
+          }
         }
       }
     } else {
